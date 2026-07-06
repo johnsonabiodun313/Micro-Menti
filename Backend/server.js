@@ -19,8 +19,8 @@ app.get('/health', (req, res) => {
 // socketSetup(server);
 
 // 5. Dynamic Port Binding
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-    console.log(`🚀 Server safely running on port ${PORT}`);
-    console.log(`🔗 Local testing link: http://localhost:${PORT}/health`);
-});
+    const PORT = process.env.PORT || 3000;
+    server.listen(PORT, () => {
+        console.log(`🚀 Server safely running on port ${PORT}`);
+        console.log(`🔗 Local testing link: http://localhost:${PORT}/health`);
+    });
