@@ -23,7 +23,7 @@ const socketSetup = require("./socketHandlers");
 socketSetup(server);
 
 // 5. Dynamic Port Binding (Now perfectly pulling from your .env file!)
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT;
 server.listen(PORT, () => {
   console.log(`🚀 Server safely running on port ${PORT}`);
   console.log(`🔗 Local testing link: http://localhost:${PORT}/health`);
