@@ -21,6 +21,7 @@
   },
   "homepage": "https://github.com/johnsonabiodun313/Micro-Menti#readme",
   "dependencies": {
+    "@supabase/supabase-js": "^2.110.0",
     "bad-words": "^3.0.4",
     "express": "^5.2.1",
     "socket.io": "^4.8.3"
