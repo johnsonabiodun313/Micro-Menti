@@ -23,6 +23,7 @@ app.get("/health", (req, res) => {
   res
     .status(200)
     .json({ status: "OK", message: "Backend infrastructure is active" });
+  console.log("Uptime monitor active...................");
 });
 
 // 6. Real-Time WebSockets Engine Setup (Rodiat's 500ms Throttler Wrapper)
