@@ -1,38 +1,30 @@
 // server.js
-require("dotenv").config(); // Loads environment variables from your .env file
+import express from 'express';
+import { createServer } from 'http';
+import { Server } from 'socket.io';
+import cors from 'cors';
+import { initializeSockets } from './sockets/index.js'; // Import Milestone 4!
 
-const express = require("express");
-const http = require("http");
-
-// 1. Initialize Express App and HTTP Server
 const app = express();
-const server = http.createServer(app);
 
-// 2. Serve static frontend assets from your public folder
-app.use(express.static("public"));
-
-// 3. Global Middleware to parse JSON bodies sent by the frontend
+app.use(cors({ origin: '*', methods: ['GET', 'POST'] }));
 app.use(express.json());
 
-// 4. REST API Route Mapping (Femi's Modular Routes)
-const presentationRoutes = require("./routes/presentation");
-app.use("/api/presentations", presentationRoutes);
-
-// 5. System Health Check Route
-app.get("/health", (req, res) => {
-  res
-    .status(200)
-    .json({ status: "OK", message: "Backend infrastructure is active" });
-  console.log("Uptime monitor active...................");
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'OK', message: 'HTTP Server is running' });
 });
 
-// 6. Real-Time WebSockets Engine Setup (Rodiat's 500ms Throttler Wrapper)
-const socketSetup = require("./sockets/index");
-socketSetup(server);
+const httpServer = createServer(app);
 
-// 7. Dynamic Server Port Binding
+const io = new Server(httpServer, {
+  cors: { origin: '*', methods: ['GET', 'POST'] }
+});
+
+// --- CONNECT THE SOCKETS ENTRY POINT ---
+// This replaces the old temporary inline connection listener!
+initializeSockets(io);
+
 const PORT = process.env.PORT;
-server.listen(PORT, () => {
-  console.log(`🚀 Master Server safely running on port ${PORT}`);
-  console.log(`🔗 Local testing link: http://localhost:${PORT}/health`);
+httpServer.listen(PORT, () => {
+  console.log(`🚀 Server is running on http://localhost:${PORT}`);
 });

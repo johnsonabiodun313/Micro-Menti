@@ -1,16 +1,25 @@
 // sockets/index.js
-const { Server } = require("socket.io");
-const registerListeners = require("./listeners");
-const startThrottler = require("./engine");
+import { registerEventHandlers, startBroadcastLoop } from './engine.js';
+import { cleanupIdleRooms } from './store.js';
 
-module.exports = function (server) {
-  const io = new Server(server, { cors: { origin: "*" } });
+/**
+ * Initializes the socket connection flow and broadcast loops.
+ * @param {Server} io - The Socket.io Server instance from server.js
+ */
+export const initializeSockets = (io) => {
+  console.log('🚀 Starting throttled broadcast loop (500ms)...');
+  startBroadcastLoop(io);
 
-  // 1. Start listening to individual user connections
-  io.on("connection", (socket) => {
-    registerListeners(socket);
+  // RAM Protection: Clear idle rooms every 15 minutes to prevent memory leaks
+  setInterval(() => {
+    cleanupIdleRooms();
+  }, 15 * 60 * 1000);
+
+  io.on('connection', (socket) => {
+    console.log(`🔌 New client connected to Socket.io: ${socket.id}`);
+    
+    // Immediately emit a generic handshake or setup direct listeners
+    // register all of your engine event listeners onto this socket
+    registerEventHandlers(io, socket);
   });
-
-  // 2. Start the global 500ms broadcast engine
-  startThrottler(io);
 };
