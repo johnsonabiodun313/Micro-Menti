@@ -1,6 +1,7 @@
 // sockets/index.js
 import { registerEventHandlers, startBroadcastLoop } from './engine.js';
 import { cleanupIdleRooms } from './store.js';
+import { registerListeners } from './listeners.js';
 
 /**
  * Initializes the socket connection flow and broadcast loops.
@@ -21,5 +22,6 @@ export const initializeSockets = (io) => {
     // Immediately emit a generic handshake or setup direct listeners
     // register all of your engine event listeners onto this socket
     registerEventHandlers(io, socket);
+    registerListeners(io, socket);
   });
 };
