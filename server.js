@@ -13,6 +13,7 @@ app.use(express.json());
 
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'OK', message: 'HTTP Server is running' });
+  console.log("Uptime monitor active...................");
 });
 
 const httpServer = createServer(app);
