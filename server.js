@@ -16,6 +16,20 @@ app.get('/health', (req, res) => {
   console.log("Uptime monitor active...................");
 });
 
+// Endpoint to check room validity from frontend before joining
+app.get('/api/room/:code', async (req, res) => {
+  const code = String(req.params.code).toUpperCase();
+  // Dynamically import store to get active rooms
+  const { getRooms } = await import('./sockets/store.js');
+  const activeRooms = getRooms();
+  
+  if (activeRooms[code] && activeRooms[code].isActive) {
+    res.json({ valid: true, topic: activeRooms[code].topic });
+  } else {
+    res.json({ valid: false });
+  }
+});
+
 const httpServer = createServer(app);
 
 const io = new Server(httpServer, {
