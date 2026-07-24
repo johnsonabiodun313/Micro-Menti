@@ -1,56 +1,219 @@
-# 📊 Micro-Menti (High-Capacity Word Cloud)
+# Micro-Menti
 
-Micro-Menti is a single-feature, hyper-focused alternative to Mentimeter. It is designed specifically to host live, interactive Word Cloud polls for up to 1,000 concurrent mobile participants. The system prioritizes ultra-low latency, zero user friction, and high cost-efficiency by eliminating traditional databases and bloated frontend frameworks.
+A lightweight, real-time word cloud polling tool that turns audience input into a live, animated word cloud. Perfect for workshops, classrooms, or any meeting where you want to see what the room is thinking, instantly.
 
----
+## System Design
 
-## 🎯 Core Objectives
+```mermaid
+flowchart LR
+  Client["Web Client"] --> Server["Micro-Menti Server"]
+  Server --> DB[("SQLite Database")]
 
-***Massive Concurrency:** Support 1,000+ simultaneous WebSocket connections on a single, low-spec server instance ($5/month).
+  style Client fill:#1e1b4b,stroke:#6366f1,stroke-width:2px,color:#fff
+  style Server fill:#2e1065,stroke:#8b5cf6,stroke-width:2px,color:#fff
+  style DB fill:#0f172a,stroke:#3b82f6,stroke-width:2px,color:#fff
+```
 
-***Frictionless UX:** Participants must join via a simple URL or QR code scan—no apps, signups, accounts, or emails required.
+## Features
 
-***Real-Time Visualization:** Presenter screen updates dynamically with zero page-refreshes using optimized CSS layout transformations.
+### Presenter-controlled Rooms
 
----
+A presenter creates a room with a PIN and an optional topic. Participants join by entering the PIN. Only the presenter can reset the word cloud.
 
-## 🏗️ Target Tech Stack
+```mermaid
+sequenceDiagram
+  actor Presenter
+  participant Server
+  participant Store as "Room Store"
 
-| Layer | Technology | Justification |
-| :--- | :--- | :--- |
-| **Frontend** | Vanilla JS / CSS3 / HTML5 | Eliminates build compilation steps and keeps asset footprints under 50KB. |
-| **Runtime Engine** | Node.js (Express) | High asynchronous throughput for lightweight network handling. |
-| **Real-time Pipeline** | Socket.io | Native abstractions for robust WebSockets fallback layers. |
-| **Production Hosting** | Ubuntu Linux + Nginx + PM2 | Standard, cheap, easily tuneable connection configurations. |
+  Presenter->>Server: Create Room (PIN + topic)
+  Server->>Store: Activate / update room
+  Store-->>Server: Room ready
+  Server->>Presenter: roomCreated + cloudUpdate
 
----
+  Presenter->>Server: Join Room (PIN)
+  Server->>Store: Verify room is active
+  Store-->>Server: Room exists
+  Server-->>Presenter: roomJoined + cloudUpdate
+```
 
-## 📋 Scope Matrix
+### Live Word Cloud with Profanity Filter
 
-### In Scope
+Participants submit words directly. A built-in filter blocks offensive language. Word counts are updated in memory and broadcast to everyone in the room every 500ms.
 
-***Participant Web App:** Single-field input interface capped at 25 characters per submission with cookie/local storage anti-spam tracking.
-***Presenter Dashboard:** Dynamic, responsive text cloud layout scaling font sizes automatically (16px to 72px) relative to word frequency, with automatic QR Code rendering and global administrative reset buttons.
-***Backend Engine:** In-memory data architecture to process hundreds of write streams per second safely, using a throttled 500ms broadcast loop and text sanitation filtering.
+```mermaid
+sequenceDiagram
+  actor Participant
+  participant Server
+  participant Store as "Word Store"
+  participant Loop as "Broadcast Loop"
 
-### Out of Scope (What this will NOT do)
+  Participant->>Server: Submit Word
+  Server->>Server: Profanity check
+  Server->>Store: Increment word count
+  Store-->>Server: Mark changed
 
-*User registration, presentation histories, or persistent accounts.
-*Multiple poll formats (e.g., Multiple Choice, Q&A, or Quizzes).
-*Permanent data storage or database exporting (historical archives are lost on server restart).
+  loop Every 500ms
+    Loop->>Store: Scan for changed rooms
+    Store-->>Loop: Rooms with isChanged
+    Loop->>Server: Emit cloudUpdate to room
+  end
+```
 
----
+### Automatic State Persistence
 
-## 📈 Key Performance Indicators (KPIs)
+All room data and word counts survive server restarts, saved to a local SQLite database. On startup, the server restores the last saved state.
 
-***Connection Target:** 1,000 active concurrent WebSocket tunnels sustained for 30 minutes without dropouts.
-***System Response Latency:** Sub-100ms time windows between participant click actions and server acknowledgement.
-***Hardware Efficiency:** Memory footprint remains under 250MB RAM under maximum simulated artificial audience load.
+### Idle Room Cleanup
 
----
+Rooms that have been inactive for more than one hour are automatically removed from memory, preventing memory leaks without any manual intervention.
 
-## 🚀 Architectural Blueprint & Codebase
+## Installation
 
-### 1. The Backend (`server.js`)
+Clone the repository and install dependencies:
 
-This lightweight server handles incoming words, tracks frequencies in memory, and broadcasts data changes in real time.
+```bash
+git clone https://github.com/johnsonabiodun313/Micro-Menti.git
+cd Micro-Menti
+npm install
+```
+
+Create a `.env` file with the port you want the server to listen on:
+
+```bash
+PORT=3000
+```
+
+Start the server:
+
+```bash
+npm start
+```
+
+For development with automatic restarts:
+
+```bash
+npm run dev
+```
+
+## Usage
+
+Micro-Menti is a backend service that you integrate with your own frontend. Here's how a typical client would connect and interact:
+
+```js
+import { io } from 'socket.io-client';
+
+const socket = io('http://localhost:3000');
+
+// Presenter creates a room
+socket.emit('createRoom', { pin: 'ROOM1', topic: 'What is your favourite framework?' });
+
+// Participant joins
+socket.emit('joinRoom', 'ROOM1');
+
+// Listen for updates (the word cloud array)
+socket.on('cloudUpdate', (cloudArray) => {
+  console.log(cloudArray);
+  // Render the word cloud on screen
+});
+
+// Participant submits a word
+socket.emit('submitWord', { roomCode: 'ROOM1', word: 'React' });
+
+// Presenter resets the cloud
+socket.emit('resetCloud', 'ROOM1');
+```
+
+You can also validate a room code without opening a socket connection by hitting the REST endpoint:
+
+```bash
+curl http://localhost:3000/api/room/ROOM1
+```
+
+Response:
+
+```json
+{
+  "valid": true,
+  "topic": "What is your favourite framework?"
+}
+```
+
+## Technologies Used
+
+| Technology | Purpose |
+|------------|---------|
+| [Express](https://expressjs.com/) | HTTP server and REST endpoints |
+| [Socket.io](https://socket.io/) | Real-time bidirectional communication |
+| [SQLite3](https://www.sqlite.org/) | Lightweight in-process database for state persistence |
+| [bad-words](https://www.npmjs.com/package/bad-words) | Profanity filtering on submitted words |
+| [dotenv](https://github.com/motdotla/dotenv) | Environment variable management |
+| [cors](https://github.com/expressjs/cors) | Cross-origin resource sharing |
+
+## API Documentation
+
+### GET /health
+
+**Description**: Health check endpoint for uptime monitoring.
+
+**Response**:
+
+```json
+{
+  "status": "OK",
+  "message": "HTTP Server is running"
+}
+```
+
+### GET /api/room/:code
+
+**Description**: Checks whether a room exists and is active. Useful for validating a PIN before a participant attempts to join.
+
+**Request**: Path parameter `:code` (the room PIN, case-insensitive).
+
+**Response**:
+
+```json
+{
+  "valid": true,
+  "topic": "What is your favourite framework?"
+}
+```
+
+or
+
+```json
+{
+  "valid": false
+}
+```
+
+**Errors**:
+
+- No specific error responses; the endpoint always returns a JSON object with `valid`.
+
+### Socket.io Events
+
+| Event (client emits) | Payload | Description |
+|----------------------|---------|-------------|
+| `createRoom` | `{ pin, topic }` | Presenter creates or activates a room |
+| `joinRoom` | `roomCode` (string) | Participant joins an active room |
+| `submitWord` | `{ roomCode, word }` | Participant submits a word to the cloud |
+| `resetCloud` | `roomCode` (string) | Presenter clears all words in a room |
+
+| Event (server emits) | Payload | Description |
+|----------------------|---------|-------------|
+| `roomCreated` | `{ pin, topic }` | Sent to the presenter when a room is created |
+| `roomJoined` | `{ pin, topic }` | Sent to a participant after joining |
+| `cloudUpdate` | `[{ text, value }, ...]` | Sent to all clients in a room when the word counts change |
+| `roomError` | `{ message }` | Sent when a join fails or a word is submitted to an inactive room |
+
+## Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PORT`   | (required) | Port the HTTP and Socket.io server listens on |
+
+## Contributing
+
+Contributions are welcome. Please open an issue to discuss proposed changes before submitting a pull request.
